@@ -1,0 +1,5 @@
+# Ignore the root venv directory
+venv/
+
+# Ignore the .env file in the MoneyTracker app
+MoneyTracker/.env
