@@ -232,7 +232,7 @@
                                 <th><i class="fas fa-calendar me-1 text-muted"></i> Date</th>
                                 <th><i class="fas fa-tag me-1 text-muted"></i> Type</th>
                                 <th><i class="fas fa-folder me-1 text-muted"></i> Category</th>
-                                <th class="text-end"><i class="fas fa-dollar-sign me-1 text-muted"></i> Amount</th>
+                                <th class="text-end"><i class="fa-solid fa-indian-rupee-sign"></i> Amount</th>
                                 <th><i class="fas fa-comment me-1 text-muted"></i> Description</th>
                                 <th><i class="fas fa-sync-alt me-1 text-muted"></i> Recurring</th>
                                 <th><i class="fas fa-cog me-1 text-muted"></i> Actions</th>
@@ -253,7 +253,7 @@
                                     </span>
                                 </td>
                                 <td>{{ transaction.category }}</td>
-                                <td class="text-end">${{ transaction.amount|stringformat:".2f" }}</td>
+                                <td class="text-end">&#8377; {{ transaction.amount|stringformat:".2f" }}</td>
                                 <td>{{ transaction.description|default:"-" }}</td>
                                 <td>
                                     {% if transaction.recurring %}

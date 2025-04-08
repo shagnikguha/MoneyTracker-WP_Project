@@ -335,7 +335,7 @@
 
                             <div class="mb-3">
                                 <label for="{{ form.amount.id_for_label }}" class="form-label">
-                                    <i class="fas fa-dollar-sign me-1 text-muted"></i> {{ form.amount.label }}:
+                                    <i class="fa-solid fa-indian-rupee-sign"></i> {{ form.amount.label }}:
                                 </label>
                                 {{ form.amount }}
                                 {% if form.amount.help_text %}<div class="form-text">{{ form.amount.help_text }}</div>{% endif %}
@@ -442,7 +442,7 @@
                                             </span>
                                         </td>
                                         <td>{{ transaction.category }}</td>
-                                        <td class="text-end">${{ transaction.amount|stringformat:".2f" }}</td>
+                                        <td class="text-end">&#8377; {{ transaction.amount|stringformat:".2f" }}</td>
                                         <td>{{ transaction.description|default:"-" }}</td>
                                         <td>
                                             {% if transaction.recurring %}
