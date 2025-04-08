@@ -89,3 +89,9 @@ def delete_transaction_view(request, transaction_id):
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('today_transactions')))
     
     return redirect('today_transactions')
+
+@login_required
+def initiate_payment_view(request):
+    # This is a placeholder view for PhonePe integration
+    messages.info(request, "PhonePe integration is coming soon!")
+    return redirect('today_transactions')
