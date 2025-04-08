@@ -128,3 +128,6 @@ from decouple import config
 
 RAZORPAY_KEY_ID     = config('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET')
+
+# Allow Razorpay’s popup to open
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
