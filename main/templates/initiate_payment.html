@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+    /* Simple CSS for PhonePe Payment Page */
+
+.card {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 1rem 1.25rem;
+}
+
+.text-primary, .fas {
+    color: #9f7aea !important;
+}
+
+.btn-primary {
+    background-color: #9f7aea;
+    border-color: #9f7aea;
+    border-radius: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background-color: #b794f4;
+    border-color: #b794f4;
+}
+
+.btn-outline-secondary {
+    color: #666;
+    border-color: #ddd;
+    border-radius: 0.5rem;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #f8f9fa;
+    color: #9f7aea;
+}
+
+.form-control, .form-select {
+    border-radius: 0.5rem;
+    border-color: #e2e8f0;
+    padding: 0.6rem 0.8rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #b794f4;
+    box-shadow: 0 0 0 0.2rem rgba(159, 122, 234, 0.25);
+}
+
+.form-check-input:checked {
+    background-color: #9f7aea;
+    border-color: #9f7aea;
+}
+
+.alert {
+    border-radius: 0.5rem;
+    border: none;
+}
+    </style>
+</head>
+<body>
+  {% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-mobile-alt me-2 text-primary"></i>
+                    <h3 class="h5 mb-0">PhonePe Payment</h3>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            <i class="fas fa-info-circle me-2"></i> {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">
+                                <i class="fas fa-dollar-sign me-1 text-muted"></i> Amount
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="1" required>
+                            </div>
+                            <div class="form-text">Enter the amount you want to pay</div>
+                        </div>
+                        
+                        <!-- Added Transaction Form Fields -->
+                        <div class="mb-3">
+                            <label for="transaction_type" class="form-label">
+                                <i class="fas fa-exchange-alt me-1 text-muted"></i> Transaction Type
+                            </label>
+                            <select class="form-select" id="transaction_type" name="transaction_type">
+                                <option value="Expense" selected>Expense</option>
+                                <option value="Income">Income</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="category" class="form-label">
+                                <i class="fas fa-tag me-1 text-muted"></i> Category
+                            </label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="Food">Food</option>
+                                <option value="Travel">Travel</option>
+                                <option value="Shopping">Shopping</option>
+                                <option value="Necessities">Necessities</option>
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Other" selected>Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="date" class="form-label">
+                                <i class="fas fa-calendar me-1 text-muted"></i> Date
+                            </label>
+                            <input type="date" class="form-control" id="date" name="date" value="{{ today|date:'Y-m-d' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">
+                                <i class="fas fa-align-left me-1 text-muted"></i> Description
+                            </label>
+                            <textarea class="form-control" id="description" name="description" rows="3" placeholder="Payment via PhonePe"></textarea>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="recurring" name="recurring">
+                            <label class="form-check-label" for="recurring">
+                                <i class="fas fa-sync-alt me-1 text-muted"></i> Is this a recurring transaction?
+                            </label>
+                            <div class="form-text mt-1">Check this if the transaction repeats regularly</div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-mobile-alt me-2"></i> Pay with PhonePe
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-4">
+                        <p class="text-muted mb-0"><small>You'll be redirected to PhonePe to complete the payment</small></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid mt-3">
+                <a href="{% url 'today_transactions' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i> Back to Transactions
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+  
+</body>
+</html>
