@@ -251,3 +251,8 @@ form input[type="checkbox"] {
     font-size: 0.875rem;
     margin-top: 0.25rem;
 }
+.btn.disabled,
+.btn:disabled {
+  pointer-events: none;
+  opacity: 0.65;
+}
