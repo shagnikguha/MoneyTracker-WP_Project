@@ -4,7 +4,7 @@ from .views import (
     transaction_history_view, index_view, edit_transaction_view,
     delete_transaction_view,
     # New payment views
-    initiate_payment_view, payment_callback_view, payment_status_view
+    initiate_payment_view, payment_callback_view, payment_status_view,premium
 )
 
 urlpatterns = [
@@ -20,4 +20,7 @@ urlpatterns = [
     path('payment/initiate/', initiate_payment_view, name='initiate_payment'),
     path('payment/callback/', payment_callback_view, name='payment_callback'),
     path('payment/status/<str:transaction_id>/', payment_status_view, name='payment_status'),
+
+    ##subscription path
+    path('subscription/', premium, name='subscription'),
 ]

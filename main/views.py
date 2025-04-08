@@ -334,3 +334,7 @@ def payment_status_view(request, transaction_id):
         traceback.print_exc()
         messages.error(request, f"An unexpected error occurred: {str(e)}")
         return redirect('today_transactions')
+    
+@login_required
+def premium(request):
+    return render(request, 'premium.html')
