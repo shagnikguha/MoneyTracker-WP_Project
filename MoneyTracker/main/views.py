@@ -5,6 +5,7 @@ from django.contrib.auth import views as auth_views  # Add this
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
+from datetime import datetime
 from django.http import HttpResponseRedirect, HttpResponseBadRequest
 from django.urls import reverse
 from django.contrib import messages
@@ -175,3 +176,64 @@ def payment_handler(request):
         except Exception as e:
             return HttpResponseBadRequest(f"Error: {str(e)}")
     return HttpResponseBadRequest("Invalid request method")
+
+def diff_site(request):
+    return render(request,'paysite.html')
+
+@csrf_exempt
+def payment_callback(request):
+    client = razorpay.Client(auth=(
+        settings.RAZORPAY_KEY_ID,
+        settings.RAZORPAY_KEY_SECRET
+    ))
+
+    # 1) Grab payment_id from GET or POST
+    if request.method == "GET":
+        payment_id = request.GET.get("payment_id")
+        # Payment‑Button redirect
+        if not payment_id:
+            return HttpResponseBadRequest("Missing payment_id")
+        # 2) Fetch the payment object
+        payment_entity = client.payment.fetch(payment_id)
+        if payment_entity.get("status") != "captured":
+            return HttpResponseBadRequest("Payment not captured")
+    elif request.method == "POST":
+        # Checkout flow: signature verification first
+        params = {
+            "razorpay_order_id":   request.POST.get("razorpay_order_id", ""),
+            "razorpay_payment_id": request.POST.get("razorpay_payment_id", ""),
+            "razorpay_signature":  request.POST.get("razorpay_signature", ""),
+        }
+        try:
+            client.utility.verify_payment_signature(params)
+        except razorpay.errors.SignatureVerificationError:
+            return HttpResponseBadRequest("Invalid signature")
+        payment_id = params["razorpay_payment_id"]
+        payment_entity = client.payment.fetch(payment_id)
+    else:
+        return HttpResponseBadRequest("Invalid request method")
+
+    # 3) Pull out email, timestamp, amount
+    payer_email  = payment_entity.get("email")
+    ts           = payment_entity.get("created_at")  # UNIX seconds
+    amount_paise = payment_entity.get("amount", 0)
+
+    # 4) Find your Customer
+    try:
+        customer = Customer.objects.get(user__email=payer_email)
+    except Customer.DoesNotExist:
+        return HttpResponseBadRequest("Customer not found")
+
+    # 5) Create the Transaction
+    Transaction.objects.create(
+        user=customer,
+        amount=amount_paise / 100.0,       # paise → rupees
+        transaction_type="Expense",       # your default
+        category="Other",                 # or whatever default
+        date=datetime.fromtimestamp(ts).date() if ts else datetime.now().date(),
+        description=f"Razorpay payment {payment_id}",
+        recurring=False
+    )
+
+    # 6) Redirect them back into your app
+    return redirect("today_transactions")

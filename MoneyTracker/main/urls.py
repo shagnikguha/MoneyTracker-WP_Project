@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     index_view, login_view, register_view, today_transactions_view,
     transaction_history_view, edit_transaction_view, delete_transaction_view,
-    premium, payment_handler
+    premium, payment_handler,payment_callback,diff_site
 )
 from django.contrib.auth import views as auth_views  # Add this import
 
@@ -17,4 +17,6 @@ urlpatterns = [
     path('transaction/delete/<int:transaction_id>/', delete_transaction_view, name='delete_transaction'),
     path('subscription/', premium, name='subscription'),
     path('payment_handler/', payment_handler, name='payment_handler'),
+    path('paysite/',diff_site,name='paysite'),
+     path('payment_callback/', payment_callback, name='payment_callback'),
 ]
