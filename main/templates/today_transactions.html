@@ -289,7 +289,7 @@
                         </a>
                     </li>
                     <li>
-                        <a href="{%url 'subscription'%}" class="nav-link">
+                        <a href="{%url 'premium'%}" class="nav-link">
                             Subscribe
                         </a>
                     </li>
@@ -298,7 +298,7 @@
                     <i class="fas fa-user me-1"></i> {{ request.user.username }}
                 </span>
                 <span class="navbar-text logout-link">
-                    <a href="{% url 'login' %}"><i class="fas fa-sign-out-alt me-1"></i> Logout</a>
+                    <a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-1"></i> Logout</a>
                 </span>
             </div>
         </div>

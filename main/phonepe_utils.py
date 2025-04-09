@@ -10,22 +10,27 @@ def generate_transaction_id():
     """Generate a unique transaction ID for PhonePe payments"""
     return f"TX{uuid.uuid4().hex[:16].upper()}"
 
-def create_payment_request(request, amount, user):
+def create_payment_request(request, amount, user, transaction_id=None, redirect_url=None):
     """Create PhonePe payment request object"""
     merchant_id = settings.PHONEPAY_MERCHANT_ID
     salt_key = settings.PHONEPAY_SALT_KEY
     salt_index = settings.PHONEPAY_SALT_INDEX
     
-    # Generate unique transaction ID
-    transaction_id = generate_transaction_id()
+    # Generate unique transaction ID if not provided
+    if transaction_id is None:
+        transaction_id = generate_transaction_id()
     
     # Create callback URL with the domain
     callback_url = request.build_absolute_uri(
         reverse('payment_callback')
     )
-    redirect_url = request.build_absolute_uri(
-        reverse('payment_status', args=[transaction_id])
-    )
+    
+    # Use custom redirect URL if provided, otherwise use default
+    if redirect_url is None:
+        redirect_url = request.build_absolute_uri(
+            reverse('payment_status', args=[transaction_id])
+        )
+
     
     # Create payload
     payload = {
@@ -40,6 +45,9 @@ def create_payment_request(request, amount, user):
             "type": "PAY_PAGE"
         }
     }
+    
+    # Rest of the function remains the same...
+
     
     # Add phone number if available
     if hasattr(user, 'profile') and hasattr(user.profile, 'phone'):

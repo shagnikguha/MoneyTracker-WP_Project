@@ -1,6 +1,7 @@
 from django.urls import path
+from . import views
 from .views import (
-    login_view, register_view, today_transactions_view,
+    login_view, logout_view, register_view, today_transactions_view,
     transaction_history_view, index_view, edit_transaction_view,
     delete_transaction_view,
     # New payment views
@@ -10,6 +11,7 @@ from .views import (
 urlpatterns = [
     path('', index_view, name='index'),
     path('login/', login_view, name='login'),
+    path('logout/', logout_view, name='logout'),
     path('register/', register_view, name='register'),
     path('today_transactions', today_transactions_view, name='today_transactions'),
     path('transaction_history', transaction_history_view, name='transaction_history'),
@@ -22,5 +24,7 @@ urlpatterns = [
     path('payment/status/<str:transaction_id>/', payment_status_view, name='payment_status'),
 
     ##subscription path
-    path('subscription/', premium, name='subscription'),
+    path('subscription/', premium, name='premium'),
+    path('subscription/initiate/', views.initiate_subscription_payment, name='initiate_subscription_payment'),
+    path('subscription/status/<str:transaction_id>/', views.subscription_status_view, name='subscription_status'),
 ]

@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
@@ -10,12 +10,16 @@ import json
 import logging
 logger = logging.getLogger(__name__)
 
-from .models import Transaction, Payment
+from .models import Transaction, Payment,Subscribed
 from .forms import InputForm
 from .phonepe_utils import create_payment_request, verify_payment_callback
 
 from django.contrib import messages
 from django.conf import settings
+
+import json
+import pandas as pd
+from collections import defaultdict
 
 def index_view(request):
     return render(request, 'index.html')
@@ -35,6 +39,13 @@ def login_view(request):
     else:
         form = AuthenticationForm()
     return render(request, 'login.html', {'form': form})
+
+# ----- New Logout View -----
+def logout_view(request):
+    logout(request)
+    request.session.flush()
+    messages.success(request, "You have been successfully logged out.")
+    return redirect('login')
 
 def register_view(request):
     if request.method == 'POST':
@@ -64,10 +75,51 @@ def today_transactions_view(request):
 
     return render(request, 'today_transactions.html', {'form': form,'data': data})
 
+# ----- New History View for added graphs -----
 @login_required
 def transaction_history_view(request):
     data = Transaction.objects.filter(user=request.user).order_by('-date', '-id')
-    return render(request, 'transaction_history.html', {'data': data})
+
+    monthly_avg_expense = {}
+    income_vs_expense = {"labels": [], "income": [], "expense": []}
+    
+    if data.exists():
+        
+        # transactions by month and type
+        monthly_grouped = defaultdict(lambda: {'Expense': 0, 'Income': 0, 'Expense_count': 0, 'Income_count': 0})
+        
+        for transaction in data:
+            month_year = transaction.date.strftime('%Y-%m')
+            transaction_type = transaction.transaction_type
+            amount = float(transaction.amount)
+            
+            monthly_grouped[month_year][transaction_type] += amount
+            monthly_grouped[month_year][f'{transaction_type}_count'] += 1
+        
+        sorted_months = sorted(monthly_grouped.keys())
+
+        # Calculate monthly average expenses
+        sorted_avg_expense = {}
+        for month in sorted_months:
+            values = monthly_grouped[month]
+            if values['Expense_count'] > 0:
+                sorted_avg_expense[month] = values['Expense'] / values['Expense_count']
+        
+        monthly_avg_expense = sorted_avg_expense
+        # income vs expense data
+        sorted_months = sorted(monthly_grouped.keys())
+        income_vs_expense = {
+            'labels': sorted_months,
+            'income': [monthly_grouped[month]['Income'] for month in sorted_months],
+            'expense': [monthly_grouped[month]['Expense'] for month in sorted_months]
+        }
+    
+    # Convert to JSON
+    monthly_avg_expense_json = json.dumps(monthly_avg_expense)
+    income_vs_expense_json = json.dumps(income_vs_expense)
+    
+    return render(request, 'transaction_history.html', {'data': data, 'monthly_avg_expense': monthly_avg_expense_json, 'income_vs_expense': income_vs_expense_json})
+
 
 @login_required
 def edit_transaction_view(request, transaction_id):
@@ -162,15 +214,13 @@ def initiate_payment_view(request):
 @csrf_exempt
 def payment_callback_view(request):
     """Callback endpoint for PhonePe"""
-    print("[CALLBACK] PhonePe callback received")
+    logger.info("[CALLBACK] PhonePe callback received")
     
     if request.method == 'POST':
-        # Get data from request
         try:
             request_data = json.loads(request.body) if request.body else {}
-            print(f"[CALLBACK] Request data: {request_data}")
+            logger.info(f"[CALLBACK] Request data: {request_data}")
             
-            # Verify the callback
             verification = verify_payment_callback(
                 request_data, 
                 settings.PHONEPAY_SALT_KEY, 
@@ -181,65 +231,35 @@ def payment_callback_view(request):
                 data = verification['data']
                 merchant_transaction_id = data.get('merchantTransactionId')
                 payment_status = data.get('code')
-                print(f"[CALLBACK] Verified payment: {merchant_transaction_id}, status: {payment_status}")
+                logger.info(f"[CALLBACK] Verified payment: {merchant_transaction_id}, status: {payment_status}")
                 
                 try:
-                    # Find the payment by transaction ID
                     payment = Payment.objects.get(payment_transaction_id=merchant_transaction_id)
-                    print(f"[CALLBACK] Found payment: {payment.id}")
+                    logger.info(f"[CALLBACK] Found payment: {payment.id}")
                     
-                    # Update the payment status
                     if payment_status == 'PAYMENT_SUCCESS':
                         payment.status = 'success'
                         payment.phonepe_transaction_id = data.get('transactionId')
                         payment.save()
-                        print(f"[CALLBACK] Updated payment status to success")
-                        
-                        # Create a transaction here in the callback
-                        if not payment.associated_transaction:
-                            try:
-                                # Create a transaction
-                                transaction = Transaction.objects.create(
-                                    user=payment.user,
-                                    amount=payment.amount,
-                                    transaction_type='Expense',
-                                    category='Other',
-                                    date=timezone.now().date(),
-                                    description=f"PhonePe payment: {merchant_transaction_id}",
-                                    recurring=False
-                                )
-                                print(f"[CALLBACK] Created transaction: {transaction.id}")
-                                
-                                # Link transaction to payment
-                                payment.associated_transaction = transaction
-                                payment.save()
-                                print(f"[CALLBACK] Linked transaction to payment")
-                            except Exception as e:
-                                print(f"[CALLBACK] Error creating transaction: {str(e)}")
-                                import traceback
-                                traceback.print_exc()
-                        
-                        return JsonResponse({'status': 'success'})
+                        logger.info(f"[CALLBACK] Updated payment status to success")
                     else:
                         payment.status = 'failed'
                         payment.save()
-                        print(f"[CALLBACK] Updated payment status to failed")
-                        return JsonResponse({'status': 'failed'})
+                        logger.info(f"[CALLBACK] Updated payment status to failed")
+                    
+                    return JsonResponse({'status': 'success'})
                 
                 except Payment.DoesNotExist:
-                    print(f"[CALLBACK] Payment not found: {merchant_transaction_id}")
+                    logger.error(f"[CALLBACK] Payment not found: {merchant_transaction_id}")
                     return JsonResponse({'status': 'error', 'message': 'Payment not found'}, status=400)
             
-            print("[CALLBACK] Invalid callback data")
+            logger.error("[CALLBACK] Invalid callback data")
             return JsonResponse({'status': 'error', 'message': 'Invalid callback data'}, status=400)
         except Exception as e:
-            print(f"[CALLBACK] Error processing callback: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"[CALLBACK] Error processing callback: {str(e)}", exc_info=True)
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
-    return HttpResponse(status=405)  # Method not allowed
-
+    return HttpResponse(status=405)
 
 @csrf_exempt
 def payment_status_view(request, transaction_id):
@@ -335,6 +355,134 @@ def payment_status_view(request, transaction_id):
         messages.error(request, f"An unexpected error occurred: {str(e)}")
         return redirect('today_transactions')
     
+def is_subscribed(user):   ##a function to check if subscribed or not
+    """Check if user has active subscription"""
+    try:
+        subscription = Subscribed.objects.get(user=user)
+        return subscription.status
+    except Subscribed.DoesNotExist:
+        return False
+
 @login_required
 def premium(request):
-    return render(request, 'premium.html')
+    subscription_active = is_subscribed(request.user)
+    return render(request, 'premium.html', {'subscription_active': subscription_active})
+
+@login_required
+def initiate_subscription_payment(request):
+    """View to initiate a PhonePe subscription payment"""
+    if request.method == 'POST':
+        amount = 200  # Fixed amount for subscription
+        
+        try:
+            # Generate transaction ID first to use in both redirect URL and payment request
+            from .phonepe_utils import generate_transaction_id
+            transaction_id = generate_transaction_id()
+            
+            # Create custom redirect URL for subscription
+            from django.urls import reverse
+            redirect_url = request.build_absolute_uri(
+                reverse('subscription_status', args=[transaction_id])
+            )
+            
+            # Modified create_payment_request call with custom redirect URL
+            from .phonepe_utils import create_payment_request
+            payment_data = create_payment_request(
+                request, 
+                amount, 
+                request.user,
+                transaction_id=transaction_id,  # Pass the pre-generated transaction ID
+                redirect_url=redirect_url  # Pass the custom redirect URL
+            )
+            
+            if payment_data['success']:
+                payment = Payment.objects.create(
+                    user=request.user,
+                    amount=amount,
+                    payment_transaction_id=payment_data['transaction_id'],
+                    status='pending'
+                )
+                logger.info(f"Created subscription payment with ID: {payment.id}, transaction_id: {payment_data['transaction_id']}")
+                
+                # Store subscription info in session
+                request.session['pending_subscription'] = {
+                    'payment_id': payment_data['transaction_id'],
+                    'is_subscription': True  # Explicitly mark as subscription
+                }
+                request.session.modified = True
+                request.session.save()
+                
+                logger.info(f"Stored in session: {request.session['pending_subscription']}")
+                return redirect(payment_data['payment_url'])
+            else:
+                logger.error(f"Subscription payment initialization failed: {payment_data.get('error')}")
+                messages.error(request, f"Payment initialization failed: {payment_data.get('error')}")
+        except Exception as e:
+            logger.error(f"Error initiating subscription payment: {str(e)}", exc_info=True)
+            messages.error(request, f"Error: {str(e)}")
+    
+    return redirect('premium')
+
+
+##view for subscription status
+@csrf_exempt  # Add this to prevent CSRF issues with external redirects
+def subscription_status_view(request, transaction_id):
+    """Handle subscription payment status"""
+    logger.info(f"[SUBSCRIPTION STATUS] View called for transaction: {transaction_id}")
+    
+    try:
+        # Find payment by transaction ID without requiring user authentication
+        payment = Payment.objects.get(payment_transaction_id=transaction_id)
+        user = payment.user
+        
+        # Authenticate user if needed
+        if not request.user.is_authenticated:
+            login(request, user)
+            logger.info(f"[SUBSCRIPTION STATUS] Logged in user: {user.username}")
+        
+        # Rest of your existing code...
+
+        
+        # Update payment status if still pending
+        if payment.status == 'pending':
+            payment.status = 'success'
+            payment.save()
+            logger.info(f"[SUBSCRIPTION STATUS] Updated payment status to success")
+        
+        # Handle subscription if payment is successful
+        if payment.status == 'success':
+            try:
+                # First check if subscription exists
+                try:
+                    subscription = Subscribed.objects.get(user=request.user)
+                    subscription.status = True
+                    subscription.save()
+                    logger.info(f"[SUBSCRIPTION STATUS] Updated existing subscription for user: {request.user.username}")
+                except Subscribed.DoesNotExist:
+                    # Create new subscription if it doesn't exist
+                    subscription = Subscribed.objects.create(user=request.user, status=True)
+                    logger.info(f"[SUBSCRIPTION STATUS] Created new subscription for user: {request.user.username}")
+                
+                messages.success(request, "Subscription activated successfully!")
+                
+                # Clear session data
+                if 'pending_subscription' in request.session:
+                    del request.session['pending_subscription']
+                    request.session.modified = True
+                    request.session.save()
+            
+            except Exception as e:
+                logger.error(f"[SUBSCRIPTION STATUS] Error updating subscription: {str(e)}", exc_info=True)
+                messages.error(request, f"Failed to activate subscription: {str(e)}")
+        else:
+            logger.warning(f"[SUBSCRIPTION STATUS] Payment not successful, status: {payment.status}")
+            messages.error(request, "Subscription payment was not successful.")
+        
+    except Payment.DoesNotExist:
+        logger.error(f"[SUBSCRIPTION STATUS] Payment not found for transaction_id: {transaction_id}")
+        messages.error(request, "Payment information not found.")
+    except Exception as e:
+        logger.error(f"[SUBSCRIPTION STATUS] Unexpected error: {str(e)}", exc_info=True)
+        messages.error(request, f"An unexpected error occurred: {str(e)}")
+    
+    return redirect('premium')

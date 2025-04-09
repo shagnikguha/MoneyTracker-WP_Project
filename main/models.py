@@ -46,3 +46,11 @@ class Payment(models.Model):
     
     def __str__(self):
         return f"Payment: {self.amount} - {self.status}"
+    
+    
+class Subscribed(models.Model):
+    user= models.OneToOneField(User,on_delete=models.CASCADE)
+    status= models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.user.username

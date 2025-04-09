@@ -158,26 +158,33 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'today_transactions' %}">
-                            <i class="fas fa-calendar-day me-1"></i> Today
-                        </a>
+                      <a class="nav-link" href="{% url 'today_transactions' %}">
+                        <i class="fas fa-calendar-day me-1"></i> Today
+                      </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="{% url 'transaction_history' %}">
-                            <i class="fas fa-history me-1"></i> History
-                        </a>
+                      <a class="nav-link active" href="{% url 'transaction_history' %}">
+                        <i class="fas fa-history me-1"></i> History
+                      </a>
                     </li>
-                    <li>
-                        <a href="{%url 'subscription'%}" class="nav-link">
-                            Subscribe
-                        </a>
+                    <!-- Show Subscribe only to Free users -->
+                    <li class="nav-item" id="subscribe-link" {% if customer.access == 'Premium' %}style="display:none;"{% endif %}>
+                      <a class="nav-link" href="{% url 'premium' %}">
+                        <i class="fas fa-star me-1"></i> Subscribe
+                      </a>
                     </li>
-                </ul>
+                    <!-- Show Analyze only to Premium users -->
+                    <li class="nav-item" id="analyze-link" {% if customer.access != 'Premium' %}style="display:none;"{% endif %}>
+                      <a class="nav-link" href="#">
+                        <i class="fas fa-chart-line me-1"></i> Analyze
+                      </a>
+                    </li>
+                  </ul>                  
                 <span class="navbar-text me-3">
                     <i class="fas fa-user me-1"></i> {{ request.user.username }}
                 </span>
                 <span class="navbar-text logout-link">
-                    <a href="{% url 'login' %}"><i class="fas fa-sign-out-alt me-1"></i> Logout</a>
+                    <a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-1"></i> Logout</a>
                 </span>
             </div>
         </div>
@@ -208,6 +215,39 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Monthly charts section -->
+        <div class="row mt-4 mb-4">
+            <!-- Monthly Expense Line Graph -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>
+                        <h3 class="h5 mb-0">Monthly Average Expenses</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="monthlyExpenseChartContainer" style="height: 350px;">
+                            <canvas id="monthlyExpenseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Income vs Expense Comparison Chart -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="fas fa-balance-scale me-2 text-primary"></i>
+                        <h3 class="h5 mb-0">Income vs Expense</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="incomeExpenseChartContainer" style="height: 350px;">
+                            <canvas id="incomeExpenseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% endif %}
 
         <!-- Transaction History Table -->
@@ -225,7 +265,7 @@
                                 <th><i class="fas fa-calendar me-1 text-muted"></i> Date</th>
                                 <th><i class="fas fa-tag me-1 text-muted"></i> Type</th>
                                 <th><i class="fas fa-folder me-1 text-muted"></i> Category</th>
-                                <th class="text-end"><i class="fas fa-dollar-sign me-1 text-muted"></i> Amount</th>
+                                <th class="text-end"><i class="fa-solid fa-indian-rupee-sign"></i> Amount</th>
                                 <th><i class="fas fa-comment me-1 text-muted"></i> Description</th>
                                 <th><i class="fas fa-sync-alt me-1 text-muted"></i> Recurring</th>
                                 <th><i class="fas fa-cog me-1 text-muted"></i> Actions</th>
@@ -246,7 +286,7 @@
                                     </span>
                                 </td>
                                 <td>{{ transaction.category }}</td>
-                                <td class="text-end">${{ transaction.amount|stringformat:".2f" }}</td>
+                                <td class="text-end">&#8377; {{ transaction.amount|stringformat:".2f" }}</td>
                                 <td>{{ transaction.description|default:"-" }}</td>
                                 <td>
                                     {% if transaction.recurring %}
@@ -418,6 +458,145 @@
                                         const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
                                         const formattedValue = value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
                                         return `${label}: ${formattedValue} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Monthly Average Expense Chart using server-provided data
+            const monthlyAvgExpense = {{ monthly_avg_expense|safe }};
+            
+            if (Object.keys(monthlyAvgExpense).length > 0) {
+                const monthLabels = Object.keys(monthlyAvgExpense).map(month => {
+                    const [year, monthNum] = month.split('-');
+                    const date = new Date(year, parseInt(monthNum) - 1);
+                    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                });
+                
+                const avgValues = Object.values(monthlyAvgExpense);
+                
+                const monthlyCtx = document.getElementById('monthlyExpenseChart').getContext('2d');
+                new Chart(monthlyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: monthLabels,
+                        datasets: [{
+                            label: 'Monthly Average Expenses',
+                            data: avgValues,
+                            borderColor: '#fd7e14',
+                            backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#fd7e14',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(52, 58, 64, 0.85)',
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Average: ₹${context.raw.toFixed(2)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₹' + value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Income vs Expense Chart using server-provided data
+            const incomeVsExpense = {{ income_vs_expense|safe }};
+            
+            if (incomeVsExpense.labels && incomeVsExpense.labels.length > 0) {
+                const comparisonLabels = incomeVsExpense.labels.map(month => {
+                    const [year, monthNum] = month.split('-');
+                    const date = new Date(year, parseInt(monthNum) - 1);
+                    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                });
+                
+                const comparisonCtx = document.getElementById('incomeExpenseChart').getContext('2d');
+                new Chart(comparisonCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: comparisonLabels,
+                        datasets: [
+                            {
+                                label: 'Income',
+                                data: incomeVsExpense.income,
+                                backgroundColor: 'rgba(81, 207, 102, 0.8)',
+                                borderColor: 'rgba(81, 207, 102, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Expense',
+                                data: incomeVsExpense.expense,
+                                backgroundColor: 'rgba(255, 107, 107, 0.8)',
+                                borderColor: 'rgba(255, 107, 107, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(52, 58, 64, 0.85)',
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ₹${context.raw.toFixed(2)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₹' + value;
                                     }
                                 }
                             }
