@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+{%load static%}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Tracker - AI Financial Assistant</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom Styles -->
+    <style>
+        :root {
+            --primary-color: #9f7aea;
+            --secondary-color: #b794f4;
+            --success-color: #48bb78;
+            --danger-color: #f56565;
+            --warning-color: #ed8936;
+            --info-color: #4299e1;
+            --light-color: #f7fafc;
+            --dark-color: #2d3748;
+            --gray-color: #a0aec0;
+            --border-radius: 0.5rem;
+            --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            --box-shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f8f9fa;
+            color: var(--dark-color);
+            line-height: 1.6;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-link {
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            background-color: #fff;
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--dark-color);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(66, 99, 235, 0.3);
+        }
+
+        .logout-link a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: color 0.3s ease;
+            font-weight: 500;
+        }
+
+        .logout-link a:hover {
+            color: #fff;
+        }
+
+        .navbar-text {
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 500;
+        }
+
+        /* Chat styles */
+        .chat-container {
+            height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border-radius: var(--border-radius);
+            border: 1px solid #e9ecef;
+            background-color: #fbfbfb;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(66, 99, 235, 0.25);
+            outline: none;
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            max-width: 75%;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+        }
+
+        .user-message {
+            background-color: var(--primary-color);
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .bot-message {
+            background-color: white;
+            color: var(--dark-color);
+            align-self: flex-start;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .premium-required {
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .premium-icon {
+            font-size: 3rem;
+            color: var(--warning-color);
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark py-3 mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'today_transactions' %}">
+                <i class="fas fa-wallet me-2"></i>Money Tracker
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'today_transactions' %}">
+                            <i class="fas fa-calendar-day me-1"></i> Today
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'transaction_history' %}">
+                            <i class="fas fa-history me-1"></i> History
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'premium' %}">
+                            <i class="fas fa-crown me-1"></i> Premium
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{% url 'chatbot' %}">
+                            <i class="fas fa-robot me-1"></i> AI Assistant
+                        </a>
+                    </li>
+                </ul>
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user me-1"></i> {{ request.user.username }}
+                </span>
+                <span class="navbar-text logout-link">
+                    <a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-1"></i> Logout</a>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="container my-4">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-robot me-2"></i> 
+                            AI Financial Assistant
+                        </div>
+                        <span class="badge bg-primary">Premium Feature</span>
+                    </div>
+                    <div class="card-body">
+                        {% if subscription_active %}
+                            <div class="chat-container">
+                                <div class="chat-messages" id="chatMessages">
+                                    <div class="message bot-message">
+                                        Hello! I'm your AI financial assistant. Ask me anything about personal finance, money management, or economic concepts!
+                                    </div>
+                                </div>
+                                <div class="chat-input-container">
+                                    <input type="text" id="chatInput" class="chat-input" placeholder="Type your question here...">
+                                    <button id="sendButton" class="btn btn-primary">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="premium-required">
+                                <div class="premium-icon">
+                                    <i class="fas fa-crown"></i>
+                                </div>
+                                <h2>Premium Feature</h2>
+                                <p class="mb-4">The AI Financial Assistant is available only to premium subscribers. Upgrade to access this feature!</p>
+                                <a href="{% url 'premium' %}" class="btn btn-primary">
+                                    <i class="fas fa-crown me-2"></i> Upgrade to Premium
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    {% if subscription_active %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chatMessages');
+            const chatInput = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendButton');
+
+            function addMessage(message, isUser = false) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(isUser ? 'user-message' : 'bot-message');
+                messageDiv.textContent = message;
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            function sendMessage() {
+                const message = chatInput.value.trim();
+                if (message) {
+                    // Add user message to chat
+                    addMessage(message, true);
+                    chatInput.value = '';
+                    
+                    // Disable input while waiting for response
+                    chatInput.disabled = true;
+                    sendButton.disabled = true;
+                    
+                    // Make API call to backend
+                    fetch('{% url "chatbot_query" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({ query: message })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Add bot response to chat
+                        addMessage(data.response);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        addMessage("Sorry, I encountered an error while processing your request.");
+                    })
+                    .finally(() => {
+                        // Re-enable input after response
+                        chatInput.disabled = false;
+                        sendButton.disabled = false;
+                        chatInput.focus();
+                    });
+                }
+            }
+
+            // Send message on button click
+            sendButton.addEventListener('click', sendMessage);
+            
+            // Send message on Enter key
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+
+            // Focus chat input on page load
+            chatInput.focus();
+        });
+    </script>
+    {% endif %}
+</body>
+</html> 
