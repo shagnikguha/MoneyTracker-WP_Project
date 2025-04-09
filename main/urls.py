@@ -5,7 +5,9 @@ from .views import (
     transaction_history_view, index_view, edit_transaction_view,
     delete_transaction_view,
     # New payment views
-    initiate_payment_view, payment_callback_view, payment_status_view,premium
+    initiate_payment_view, payment_callback_view, payment_status_view,premium,
+    # Chatbot views
+    chatbot, chatbot_query
 )
 
 urlpatterns = [
@@ -27,4 +29,8 @@ urlpatterns = [
     path('subscription/', premium, name='premium'),
     path('subscription/initiate/', views.initiate_subscription_payment, name='initiate_subscription_payment'),
     path('subscription/status/<str:transaction_id>/', views.subscription_status_view, name='subscription_status'),
+    
+    # Chatbot routes
+    path('chatbot/', chatbot, name='chatbot'),
+    path('chatbot/query/', chatbot_query, name='chatbot_query'),
 ]

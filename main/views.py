@@ -3,11 +3,13 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, HttpResponseBadRequest
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 import json
 import logging
+import requests
 logger = logging.getLogger(__name__)
 
 from .models import Transaction, Payment,Subscribed
@@ -367,6 +369,97 @@ def is_subscribed(user):   ##a function to check if subscribed or not
 def premium(request):
     subscription_active = is_subscribed(request.user)
     return render(request, 'premium.html', {'subscription_active': subscription_active})
+
+@login_required
+def chatbot(request):
+    """View for the chatbot page, only accessible to premium subscribers"""
+    subscription_active = is_subscribed(request.user)
+    return render(request, 'chatbot.html', {'subscription_active': subscription_active})
+
+@login_required
+@require_POST
+def chatbot_query(request):
+    """API endpoint for processing chatbot queries using Gemini"""
+    # Check if user is subscribed
+    if not is_subscribed(request.user):
+        return HttpResponseBadRequest("Premium subscription required")
+        
+    try:
+        # Parse the request body
+        body_unicode = request.body.decode('utf-8')
+        body = json.loads(body_unicode)
+        query = body.get('query', '')
+        
+        if not query:
+            return JsonResponse({'error': 'Query is required'}, status=400)
+        
+        # Your Gemini API key should be stored in environment variables or settings
+        # For this example, we'll assume it's in Django settings
+        from django.conf import settings
+        
+        # Call the Gemini API
+        gemini_api_key = getattr(settings, 'GEMINI_API_KEY', '')
+        if not gemini_api_key:
+            return JsonResponse({'error': 'API key not configured'}, status=500)
+            
+        # Set up the API endpoint
+        gemini_endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent"
+        
+        # Construct the prompt to focus on finance and economics topics
+        instruction = (
+            "You are a financial assistant chatbot that only answers questions related to money, "
+            "finance, economics, budgeting, investing, and related topics. "
+            "If the user asks about something unrelated to these topics, politely explain that "
+            "you can only help with financial matters. "
+            "Be concise, accurate, and helpful with finance-related questions."
+        )
+        
+        prompt = f"{instruction}\n\nUser question: {query}"
+        
+        # Make the API request
+        response = requests.post(
+            f"{gemini_endpoint}?key={gemini_api_key}",
+            json={
+                "contents": [
+                    {
+                        "parts": [
+                            {"text": prompt}
+                        ]
+                    }
+                ],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 800
+                }
+            }
+        )
+        
+        # Process the response
+        if response.status_code == 200:
+            response_data = response.json()
+            
+            # Extract the text from the response
+            generated_text = ""
+            try:
+                candidates = response_data.get('candidates', [])
+                if candidates and 'content' in candidates[0]:
+                    parts = candidates[0]['content'].get('parts', [])
+                    if parts:
+                        generated_text = parts[0].get('text', '')
+            except (KeyError, IndexError) as e:
+                logger.error(f"Error parsing Gemini response: {str(e)}")
+                return JsonResponse({'error': 'Error parsing API response'}, status=500)
+                
+            return JsonResponse({'response': generated_text})
+        else:
+            logger.error(f"Gemini API error: {response.status_code} - {response.text}")
+            return JsonResponse({'error': f'API error: {response.status_code}'}, status=500)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"Chatbot error: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
 def initiate_subscription_payment(request):
